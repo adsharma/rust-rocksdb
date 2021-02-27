@@ -275,7 +275,7 @@ impl<'a> DBRawIterator<'a> {
     }
 
     /// Seeks to the next key.
-    pub fn next(&mut self) {
+    pub fn next(&self) {
         unsafe {
             ffi::rocksdb_iter_next(self.inner);
         }

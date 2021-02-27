@@ -16,7 +16,7 @@ mod util;
 
 use pretty_assertions::assert_eq;
 
-use rocksdb::{Direction, IteratorMode, MemtableFactory, Options, DB};
+use rocksdb::{BlockBasedOptions, DB, DBRawIterator, Direction, IteratorMode, MemtableFactory, Options, ReadOptions};
 use util::DBPath;
 
 fn cba(input: &[u8]) -> Box<[u8]> {
@@ -205,6 +205,42 @@ fn test_prefix_iterator() {
             let expected = vec![(cba(&b1), cba(&b1)), (cba(&b2), cba(&b2))];
             let b_iterator = db.prefix_iterator(b"bbb");
             assert_eq!(b_iterator.collect::<Vec<_>>(), expected)
+        }
+    }
+}
+
+#[test]
+fn test_lifetime_iterator() {
+    let n = DBPath::new("_rust_rocksdb_lifetime_iterator_test");
+    {
+        let mut opts = Options::default();
+        let mut block_opts = BlockBasedOptions::default();
+        block_opts.set_use_delta_encoding(true);
+        opts.set_block_based_table_factory(&block_opts);
+        opts.create_if_missing(true);
+        let db = DB::open(&opts, &n).unwrap();
+
+        let mut expected= vec![];
+        for i in 1..100 {
+          let key = format!("key{:03}", i);
+          let mut keyb = [0u8; 6];
+          keyb.clone_from_slice(key.as_bytes());
+          expected.push(keyb);
+          assert!(db.put(keyb, keyb).is_ok());
+        }
+
+        {
+            let mut ropts = ReadOptions::default();
+            ropts.set_pin_data(true);
+            let iterator = db.iterator_opt(IteratorMode::Start, ropts);
+            let riterator: DBRawIterator = iterator.into();
+            let mut collected = vec![];
+            while riterator.valid() {
+                collected.push(riterator.key().unwrap());
+                riterator.next();
+            }
+            assert_eq!(collected, expected);
+            assert_eq!(collected.len(), 99);
         }
     }
 }

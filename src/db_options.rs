@@ -624,6 +624,13 @@ impl BlockBasedOptions {
     pub fn set_data_block_hash_ratio(&mut self, ratio: f64) {
         unsafe { ffi::rocksdb_block_based_options_set_data_block_hash_ratio(self.inner, ratio) }
     }
+
+    /// Allow setting use_delta_encoding
+    pub fn set_use_delta_encoding(&mut self, value: bool) {
+        unsafe {
+            ffi::rocksdb_block_based_options_set_use_delta_encoding(self.inner, mem::transmute(value));
+        }
+    }
 }
 
 impl Default for BlockBasedOptions {
